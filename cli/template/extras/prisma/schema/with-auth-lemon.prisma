@@ -1,0 +1,154 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Post {
+  id        String   @id @default(uuid())
+  name      String
+  password  String?
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdBy   User   @relation(fields: [createdById], references: [id])
+  createdById String
+
+  @@index([name])
+}
+
+model User {
+  id            String          @id @default(cuid())
+  name          String?
+  email         String          @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  // Optional for WebAuthn support
+  Authenticator Authenticator[]
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  Post      Post[]
+  Customer  Customer?
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+// Optional for WebAuthn support
+model Authenticator {
+  credentialID         String  @unique
+  userId               String
+  providerAccountId    String
+  credentialPublicKey  String
+  counter              Int
+  credentialDeviceType String
+  credentialBackedUp   Boolean
+  transports           String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, credentialID])
+}
+
+model Customer {
+  id                     String  @id @unique @db.VarChar(255)
+  lemonSqueezyCustomerId String? @db.VarChar(255)
+
+  user User? @relation(fields: [id], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Plan {
+  id                 Int            @id @default(autoincrement())
+  productId          Int
+  productName        String?
+  variantId          Int            @unique
+  name               String
+  description        String?
+  price              String
+  isUsageBased       Boolean        @default(false)
+  interval           String?
+  intervalCount      Int?
+  trialInterval      String?
+  trialIntervalCount Int?
+  sort               Int?
+  subscriptions      Subscription[]
+}
+
+model Subscription {
+  id                 String  @id @default(uuid())
+  lemonSqueezyId     String  @unique
+  orderId            Int
+  name               String
+  email              String
+  status             String
+  statusFormatted    String
+  renewsAt           String?
+  endsAt             String?
+  trialEndsAt        String?
+  price              String
+  isUsageBased       Boolean @default(false)
+  isPaused           Boolean @default(false)
+  subscriptionItemId Int
+
+  userId String
+  planId Int
+  plan   Plan   @relation(fields: [planId], references: [id])
+
+  @@index([subscriptionItemId])
+  @@index([planId])
+}
+
+model WebhookEvent {
+  id              String   @id @default(uuid())
+  createdAt       DateTime @default(now())
+  eventName       String
+  processed       Boolean  @default(false)
+  body            String
+  processingError String?
+}

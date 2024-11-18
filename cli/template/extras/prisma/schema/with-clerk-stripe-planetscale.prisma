@@ -1,0 +1,114 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+
+  relationMode = "prisma"
+}
+
+enum PricingType {
+  ONE_TIME
+  RECURRING
+}
+
+enum PricingPlanInterval {
+  DAY
+  WEEK
+  MONTH
+  YEAR
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  CANCELED
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+  PAST_DUE
+  UNPAID
+  PAUSED
+}
+
+model User {
+  clerkId  String @id
+  name     String
+  email    String @unique
+  image    String
+  password String
+}
+
+model Post {
+  id        String   @id @default(uuid())
+  name      String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdById String
+  createdBy   String
+
+  @@index([name])
+}
+
+model Customer {
+  id               String  @id
+  stripeCustomerId String?
+  user             String
+}
+
+model Product {
+  id          String   @id
+  active      Boolean?
+  name        String?
+  description String?
+  image       String?
+  metadata    Json?
+
+  prices Price[]
+}
+
+model Price {
+  id              String   @id
+  productId       String?
+  active          Boolean?
+  description     String?
+  unitAmount      Int?
+  currency        String?
+  type            String?
+  interval        String?
+  intervalCount   Int?
+  trialPeriodDays Int?
+  metadata        Json?
+
+  product      Product?       @relation(fields: [productId], references: [id])
+  Subscription Subscription[]
+
+  @@index([productId])
+}
+
+model Subscription {
+  id                 String              @id
+  userId             String
+  status             SubscriptionStatus?
+  metadata           Json?
+  priceId            String?
+  quantity           Int?
+  cancelAtPeriodEnd  Boolean?
+  created            DateTime            @default(now())
+  currentPeriodStart DateTime            @default(now())
+  currentPeriodEnd   DateTime            @default(now())
+  endedAt            DateTime?
+  cancelAt           DateTime?
+  canceledAt         DateTime?
+  trialStart         DateTime?
+  trialEnd           DateTime?
+
+  user  String
+  price Price? @relation(fields: [priceId], references: [id])
+
+  @@index([priceId])
+}

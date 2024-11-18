@@ -1,0 +1,175 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+
+  relationMode = "prisma"
+}
+
+model Post {
+    id      String    @id @default(uuid())
+  name      String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdBy   User   @relation(fields: [createdById], references: [id])
+  createdById String
+
+  @@index([name])
+  @@index([createdById])
+}
+
+model User {
+  id               String      @id
+  name             String
+  email            String
+  emailVerified    Boolean
+  image            String?
+  createdAt        DateTime
+  updatedAt        DateTime
+  role             String?
+  banned           Boolean?
+  banReason        String?
+  banExpires       DateTime?
+  twoFactorEnabled Boolean?
+  Session          Session[]
+  Account          Account[]
+  Passkey          Passkey[]
+  TwoFactor        TwoFactor[]
+  Post             Post[]
+  Customer         Customer?
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id             String   @id
+  expiresAt      DateTime
+  ipAddress      String?
+  userAgent      String?
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  impersonatedBy String?
+
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id           String    @id
+  accountId    String
+  providerId   String
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken  String?
+  refreshToken String?
+  idToken      String?
+  expiresAt    DateTime?
+  password     String?
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+
+  @@map("verification")
+}
+
+model Passkey {
+  id             String    @id
+  name           String?
+  publicKey      String
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  webauthnUserID String
+  counter        Int
+  deviceType     String
+  backedUp       Boolean
+  transports     String?
+  createdAt      DateTime?
+
+  @@index([userId])
+  @@map("passkey")
+}
+
+model TwoFactor {
+  id          String @id
+  secret      String
+  backupCodes String
+  userId      String
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("twoFactor")
+}
+
+model Customer {
+  id                     String  @id @unique
+  lemonSqueezyCustomerId String?
+
+  user User? @relation(fields: [id], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Plan {
+  id                 Int            @id @default(autoincrement())
+  productId          Int
+  productName        String?
+  variantId          Int            @unique
+  name               String
+  description        String?
+  price              String
+  isUsageBased       Boolean        @default(false)
+  interval           String?
+  intervalCount      Int?
+  trialInterval      String?
+  trialIntervalCount Int?
+  sort               Int?
+  subscriptions      Subscription[]
+}
+
+model Subscription {
+  id                 String  @id @default(uuid())
+  lemonSqueezyId     String  @unique
+  orderId            Int
+  name               String
+  email              String
+  status             String
+  statusFormatted    String
+  renewsAt           String?
+  endsAt             String?
+  trialEndsAt        String?
+  price              String
+  isUsageBased       Boolean @default(false)
+  isPaused           Boolean @default(false)
+  subscriptionItemId Int     @default(autoincrement())
+
+  userId String
+  planId Int
+  plan   Plan   @relation(fields: [planId], references: [id])
+
+  @@index([subscriptionItemId])
+  @@index([planId])
+}
+
+model WebhookEvent {
+  id              String   @id @default(uuid())
+  createdAt       DateTime @default(now())
+  eventName       String
+  processed       Boolean  @default(false)
+  body            Json
+  processingError String?
+}

@@ -1,0 +1,152 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String            @id @default(uuid())
+  emailVerified    DateTime?
+  account          Account?
+  profile          Profile?
+  resetToken       ResetToken?
+  verifyEmailToken VerifyEmailToken?
+  Customer         Customer?
+
+  @@map("user")
+}
+
+model Account {
+  id          Int     @id @default(autoincrement())
+  userId      String  @unique
+  accountType String
+  githubId    String? @unique
+  googleId    String? @unique
+  password    String?
+  salt        String?
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, accountType])
+  @@map("accounts")
+}
+
+model MagicLink {
+  id             Int       @id @default(autoincrement())
+  email          String    @unique
+  token          String?
+  tokenExpiresAt DateTime?
+
+  @@index([token])
+  @@map("magic_links")
+}
+
+model ResetToken {
+  id             Int       @id @default(autoincrement())
+  userId         String    @unique
+  token          String?
+  tokenExpiresAt DateTime?
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@map("reset_tokens")
+}
+
+model VerifyEmailToken {
+  id             Int       @id @default(autoincrement())
+  userId         String    @unique
+  token          String?
+  tokenExpiresAt DateTime?
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@map("verify_email_tokens")
+}
+
+model Profile {
+  id          Int     @id @default(autoincrement())
+  userId      String  @unique
+  displayName String?
+  imageId     String?
+  image       String?
+  bio         String  @default("")
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Post        Post[]
+
+  @@map("profile")
+}
+
+model Post {
+  id        String   @id @default(uuid())
+  name      String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdById String
+  createdBy   Profile @relation(fields: [createdById], references: [userId])
+
+  @@index([name])
+}
+
+model Customer {
+  id                     String  @id @unique
+  lemonSqueezyCustomerId String? @db.VarChar(255)
+
+  user User? @relation(fields: [id], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Plan {
+  id                 Int            @id @default(autoincrement())
+  productId          Int
+  productName        String?
+  variantId          Int            @unique
+  name               String
+  description        String?
+  price              String
+  isUsageBased       Boolean        @default(false)
+  interval           String?
+  intervalCount      Int?
+  trialInterval      String?
+  trialIntervalCount Int?
+  sort               Int?
+  subscriptions      Subscription[]
+}
+
+model Subscription {
+  id                 String  @id @default(uuid())
+  lemonSqueezyId     String  @unique
+  orderId            Int
+  name               String
+  email              String
+  status             String
+  statusFormatted    String
+  renewsAt           String?
+  endsAt             String?
+  trialEndsAt        String?
+  price              String
+  isUsageBased       Boolean @default(false)
+  isPaused           Boolean @default(false)
+  subscriptionItemId Int
+
+  userId String
+  planId Int
+  plan   Plan   @relation(fields: [planId], references: [id])
+
+  @@index([subscriptionItemId])
+  @@index([planId])
+}
+
+model WebhookEvent {
+  id              String   @id @default(uuid())
+  createdAt       DateTime @default(now())
+  eventName       String
+  processed       Boolean  @default(false)
+  body            String
+  processingError String?
+}

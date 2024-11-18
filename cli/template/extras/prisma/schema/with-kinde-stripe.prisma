@@ -1,0 +1,98 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PricingType {
+  ONE_TIME
+  RECURRING
+}
+
+enum PricingPlanInterval {
+  DAY
+  WEEK
+  MONTH
+  YEAR
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  CANCELED
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+  PAST_DUE
+  UNPAID
+  PAUSED
+}
+
+model Post {
+  id        String   @id @default(uuid())
+  name      String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdById String
+
+  @@index([name])
+}
+
+model Customer {
+  id               String  @id
+  stripeCustomerId String?
+  user             String
+}
+
+model Product {
+  id          String   @id
+  active      Boolean?
+  name        String?
+  description String?
+  image       String?
+  metadata    Json?
+
+  prices Price[]
+}
+
+model Price {
+  id              String   @id
+  productId       String?
+  active          Boolean?
+  description     String?
+  unitAmount      Int?
+  currency        String?
+  type            String?
+  interval        String?
+  intervalCount   Int?
+  trialPeriodDays Int?
+  metadata        Json?
+
+  product      Product?       @relation(fields: [productId], references: [id])
+  Subscription Subscription[]
+}
+
+model Subscription {
+  id                 String              @id
+  userId             String
+  status             SubscriptionStatus?
+  metadata           Json?
+  priceId            String?
+  quantity           Int?
+  cancelAtPeriodEnd  Boolean?
+  created            DateTime            @default(now()) @db.Timestamptz
+  currentPeriodStart DateTime            @default(now()) @db.Timestamptz
+  currentPeriodEnd   DateTime            @default(now()) @db.Timestamptz
+  endedAt            DateTime?           @db.Timestamptz
+  cancelAt           DateTime?           @db.Timestamptz
+  canceledAt         DateTime?           @db.Timestamptz
+  trialStart         DateTime?           @db.Timestamptz
+  trialEnd           DateTime?           @db.Timestamptz
+
+  user  String
+  price Price? @relation(fields: [priceId], references: [id])
+}

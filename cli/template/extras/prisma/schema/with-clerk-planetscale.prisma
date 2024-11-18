@@ -1,0 +1,39 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+
+  relationMode = "prisma"
+}
+
+model Post {
+  id        String   @id @default(uuid())
+  name      String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdById String
+
+  // i did'nt added relation with users because at testing the boilerplate
+  // you might dont have clerk webhooks setup and users and not saved
+  // in the db and creating a post with  relation to user will thorw a foriegn key violation error //
+
+  // and i dont want any error at testing my boilerplate
+  // i will recommend creating relations of both these tables
+
+  @@index([name])
+  @@index([createdById])
+}
+
+model User {
+  clerkId  String @id
+  name     String
+  email    String @unique
+  image    String
+  password String
+}

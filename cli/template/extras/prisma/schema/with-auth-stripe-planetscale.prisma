@@ -1,0 +1,190 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+
+  relationMode = "prisma"
+}
+
+// Enums
+enum PricingType {
+  ONE_TIME
+  RECURRING
+}
+
+enum PricingPlanInterval {
+  DAY
+  WEEK
+  MONTH
+  YEAR
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  CANCELED
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+  PAST_DUE
+  UNPAID
+  PAUSED
+}
+
+// Models
+model Post {
+  id          String   @id @default(uuid())
+  name        String?  @db.VarChar(256)
+  content     String?
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  @@index([createdById], name: "created_by_idx")
+  @@index([name], name: "name_idx")
+}
+
+model User {
+  id            String          @id @default(cuid())
+  name          String?
+  password      String?
+  username      String?         @unique
+  email         String?         @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  // Optional for WebAuthn support
+  Authenticator Authenticator[]
+
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  Post         Post[]
+  Customer     Customer[]
+  Subscription Subscription[]
+}
+
+model Account {
+  id                       String  @id @default(cuid())
+  userId                   String  @unique
+  type                     String
+  provider                 String
+  providerAccountId        String
+  refresh_token            String? @db.Text
+  access_token             String? @db.Text
+  expires_at               Int?
+  token_type               String?
+  scope                    String?
+  id_token                 String? @db.Text
+  session_state            String?
+  refresh_token_expires_in Int?
+  user                     User?   @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Optional for WebAuthn support
+model Authenticator {
+  credentialID         String  @unique
+  userId               String
+  providerAccountId    String
+  credentialPublicKey  String
+  counter              Int
+  credentialDeviceType String
+  credentialBackedUp   Boolean
+  transports           String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, credentialID])
+}
+
+model Customer {
+  id               String  @id
+  stripeCustomerId String?
+  user             User    @relation(fields: [id], references: [id])
+}
+
+model Product {
+  id          String   @id
+  active      Boolean?
+  name        String?
+  description String?
+  image       String?
+  metadata    Json?
+
+  prices Price[]
+}
+
+model Price {
+  id              String   @id
+  productId       String?
+  active          Boolean?
+  description     String?
+  unitAmount      Int?
+  currency        String?
+  type            String?
+  interval        String?
+  intervalCount   Int?
+  trialPeriodDays Int?
+  metadata        Json?
+
+  product      Product?       @relation(fields: [productId], references: [id])
+  Subscription Subscription[]
+
+  @@index([productId])
+}
+
+model Subscription {
+  id                 String              @id
+  userId             String
+  status             SubscriptionStatus?
+  metadata           Json?
+  priceId            String?
+  quantity           Int?
+  cancelAtPeriodEnd  Boolean?
+  created            DateTime            @default(now())
+  currentPeriodStart DateTime            @default(now())
+  currentPeriodEnd   DateTime            @default(now())
+  endedAt            DateTime?
+  cancelAt           DateTime?
+  canceledAt         DateTime?
+  trialStart         DateTime?
+  trialEnd           DateTime?
+
+  price Price? @relation(fields: [priceId], references: [id])
+  User  User?  @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([priceId])
+}

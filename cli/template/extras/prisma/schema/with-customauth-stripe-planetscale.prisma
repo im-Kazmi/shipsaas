@@ -1,0 +1,180 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+
+  relationMode = "prisma"
+}
+
+enum PricingType {
+  ONE_TIME
+  RECURRING
+}
+
+enum PricingPlanInterval {
+  DAY
+  WEEK
+  MONTH
+  YEAR
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  CANCELED
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+  PAST_DUE
+  UNPAID
+  PAUSED
+}
+
+model User {
+  id               String            @id @default(uuid())
+  emailVerified    DateTime?
+  account          Account?
+  profile          Profile?
+  resetToken       ResetToken?
+  verifyEmailToken VerifyEmailToken?
+  Customer         Customer[]
+  Subscription     Subscription[]
+
+  @@map("user")
+}
+
+model Account {
+  id          Int     @id @default(autoincrement())
+  userId      String  @unique
+  accountType String
+  githubId    String? @unique
+  googleId    String? @unique
+  password    String?
+  salt        String?
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, accountType])
+  @@map("accounts")
+}
+
+model MagicLink {
+  id             Int       @id @default(autoincrement())
+  email          String    @unique
+  token          String?
+  tokenExpiresAt DateTime?
+
+  @@index([token])
+  @@map("magic_links")
+}
+
+model ResetToken {
+  id             Int       @id @default(autoincrement())
+  userId         String    @unique
+  token          String?
+  tokenExpiresAt DateTime?
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@map("reset_tokens")
+}
+
+model VerifyEmailToken {
+  id             Int       @id @default(autoincrement())
+  userId         String    @unique
+  token          String?
+  tokenExpiresAt DateTime?
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@map("verify_email_tokens")
+}
+
+model Profile {
+  id          Int     @id @default(autoincrement())
+  userId      String  @unique
+  displayName String?
+  imageId     String?
+  image       String?
+  bio         String  @default("")
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Post        Post[]
+
+  @@map("profile")
+}
+
+model Post {
+  id        String   @id @default(uuid())
+  name      String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdById String
+  createdBy   Profile @relation(fields: [createdById], references: [userId])
+
+  @@index([name])
+  @@index([createdById])
+}
+
+model Customer {
+  id               String  @id
+  stripeCustomerId String?
+  user             User    @relation(fields: [id], references: [id])
+}
+
+model Product {
+  id          String   @id
+  active      Boolean?
+  name        String?
+  description String?
+  image       String?
+  metadata    Json?
+
+  prices Price[]
+}
+
+model Price {
+  id              String   @id
+  productId       String?
+  active          Boolean?
+  description     String?
+  unitAmount      Int?
+  currency        String?
+  type            String?
+  interval        String?
+  intervalCount   Int?
+  trialPeriodDays Int?
+  metadata        Json?
+
+  product      Product?       @relation(fields: [productId], references: [id])
+  Subscription Subscription[]
+
+  @@index([productId])
+}
+
+model Subscription {
+  id                 String              @id
+  userId             String
+  status             SubscriptionStatus?
+  metadata           Json?
+  priceId            String?
+  quantity           Int?
+  cancelAtPeriodEnd  Boolean?
+  created            DateTime            @default(now())
+  currentPeriodStart DateTime            @default(now())
+  currentPeriodEnd   DateTime            @default(now())
+  endedAt            DateTime?
+  cancelAt           DateTime?
+  canceledAt         DateTime?
+  trialStart         DateTime?
+  trialEnd           DateTime?
+
+  price Price? @relation(fields: [priceId], references: [id])
+  User  User?  @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([priceId])
+}

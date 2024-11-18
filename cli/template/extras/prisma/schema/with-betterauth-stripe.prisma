@@ -1,0 +1,189 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Enums
+enum PricingType {
+  ONE_TIME
+  RECURRING
+}
+
+enum PricingPlanInterval {
+  DAY
+  WEEK
+  MONTH
+  YEAR
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  CANCELED
+  INCOMPLETE
+  INCOMPLETE_EXPIRED
+  PAST_DUE
+  UNPAID
+  PAUSED
+}
+
+// Models
+model Post {
+  id          String   @id @default(uuid())
+  name        String?  @db.VarChar(256)
+  content     String?
+  createdById String
+  createdAt   DateTime @default(now()) @db.Timestamptz
+  updatedAt   DateTime @updatedAt @db.Timestamptz
+
+  createdBy User @relation(fields: [createdById], references: [id])
+
+  @@index([createdById], name: "created_by_idx")
+  @@index([name], name: "name_idx")
+}
+
+model User {
+  id               String         @id
+  name             String
+  email            String
+  emailVerified    Boolean
+  image            String?
+  createdAt        DateTime
+  updatedAt        DateTime
+  role             String?
+  banned           Boolean?
+  banReason        String?
+  banExpires       DateTime?
+  twoFactorEnabled Boolean?
+  Session          Session[]
+  Account          Account[]
+  Passkey          Passkey[]
+  TwoFactor        TwoFactor[]
+  Post             Post[]
+  Customer         Customer[]
+  Subscription     Subscription[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id             String   @id
+  expiresAt      DateTime
+  ipAddress      String?
+  userAgent      String?
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  impersonatedBy String?
+
+  @@map("session")
+}
+
+model Account {
+  id           String    @id
+  accountId    String
+  providerId   String
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken  String?
+  refreshToken String?
+  idToken      String?
+  expiresAt    DateTime?
+  password     String?
+
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+
+  @@map("verification")
+}
+
+model Passkey {
+  id             String    @id
+  name           String?
+  publicKey      String
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  webauthnUserID String
+  counter        Int
+  deviceType     String
+  backedUp       Boolean
+  transports     String?
+  createdAt      DateTime?
+
+  @@map("passkey")
+}
+
+model TwoFactor {
+  id          String @id
+  secret      String
+  backupCodes String
+  userId      String
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("twoFactor")
+}
+
+model Customer {
+  id               String  @id
+  stripeCustomerId String?
+  user             User    @relation(fields: [id], references: [id])
+}
+
+model Product {
+  id          String   @id
+  active      Boolean?
+  name        String?
+  description String?
+  image       String?
+  metadata    Json?
+
+  prices Price[]
+}
+
+model Price {
+  id              String   @id
+  productId       String?
+  active          Boolean?
+  description     String?
+  unitAmount      Int?
+  currency        String?
+  type            String?
+  interval        String?
+  intervalCount   Int?
+  trialPeriodDays Int?
+  metadata        Json?
+
+  product      Product?       @relation(fields: [productId], references: [id])
+  Subscription Subscription[]
+}
+
+model Subscription {
+  id                 String              @id
+  userId             String
+  status             SubscriptionStatus?
+  metadata           Json?
+  priceId            String?
+  quantity           Int?
+  cancelAtPeriodEnd  Boolean?
+  created            DateTime            @default(now()) @db.Timestamptz
+  currentPeriodStart DateTime            @default(now()) @db.Timestamptz
+  currentPeriodEnd   DateTime            @default(now()) @db.Timestamptz
+  endedAt            DateTime?           @db.Timestamptz
+  cancelAt           DateTime?           @db.Timestamptz
+  canceledAt         DateTime?           @db.Timestamptz
+  trialStart         DateTime?           @db.Timestamptz
+  trialEnd           DateTime?           @db.Timestamptz
+
+  price Price? @relation(fields: [priceId], references: [id])
+  User  User?  @relation(fields: [userId], references: [id])
+}

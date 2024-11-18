@@ -1,0 +1,92 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String            @id @default(uuid())
+  emailVerified    DateTime?
+  account          Account?
+  profile          Profile?
+  resetToken       ResetToken?
+  verifyEmailToken VerifyEmailToken?
+
+  @@map("gf_user")
+}
+
+model Account {
+  id          Int     @id @default(autoincrement())
+  userId      String  @unique
+  accountType String
+  githubId    String? @unique
+  googleId    String? @unique
+  password    String?
+  salt        String?
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, accountType])
+  @@map("gf_accounts")
+}
+
+model MagicLink {
+  id             Int       @id @default(autoincrement())
+  email          String    @unique
+  token          String?
+  tokenExpiresAt DateTime?
+
+  @@index([token])
+  @@map("gf_magic_links")
+}
+
+model ResetToken {
+  id             Int       @id @default(autoincrement())
+  userId         String    @unique
+  token          String?
+  tokenExpiresAt DateTime?
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@map("gf_reset_tokens")
+}
+
+model VerifyEmailToken {
+  id             Int       @id @default(autoincrement())
+  userId         String    @unique
+  token          String?
+  tokenExpiresAt DateTime?
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@map("gf_verify_email_tokens")
+}
+
+model Profile {
+  id          Int     @id @default(autoincrement())
+  userId      String  @unique
+  displayName String?
+  imageId     String?
+  image       String?
+  bio         String  @default("")
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  Post        Post[]
+
+  @@map("gf_profile")
+}
+
+model Post {
+  id        String   @id @default(uuid())
+  name      String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdById String
+  createdBy   Profile @relation(fields: [createdById], references: [userId])
+
+  @@index([name])
+  @@index([createdById])
+}

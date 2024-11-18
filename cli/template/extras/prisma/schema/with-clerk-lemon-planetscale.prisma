@@ -1,0 +1,100 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+
+  relationMode = "prisma"
+}
+
+model Post {
+  id        String   @id @default(uuid())
+  name      String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdById String
+
+  // i did'nt added relation with users because at testing the boilerplate
+  // you might dont have clerk webhooks setup and users and not saved
+  // in the db and creating a post with  relation to user will thorw a foriegn key violation error //
+
+  // and i dont want any error at testing my boilerplate
+  // i will recommend creating relations of both these tables
+
+  @@index([name])
+  @@index([createdById])
+}
+
+model User {
+  clerkId  String    @id
+  name     String
+  email    String    @unique
+  image    String
+  password String
+  Customer Customer?
+}
+
+model Customer {
+  id                     String  @id @unique @db.VarChar(255)
+  lemonSqueezyCustomerId String? @db.VarChar(255)
+
+  user User? @relation(fields: [id], references: [clerkId])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Plan {
+  id                 Int            @id @default(autoincrement())
+  productId          Int
+  productName        String?
+  variantId          Int            @unique
+  name               String
+  description        String?
+  price              String
+  isUsageBased       Boolean        @default(false)
+  interval           String?
+  intervalCount      Int?
+  trialInterval      String?
+  trialIntervalCount Int?
+  sort               Int?
+  subscriptions      Subscription[]
+}
+
+model Subscription {
+  id                 String  @id @default(uuid())
+  lemonSqueezyId     String  @unique
+  orderId            Int
+  name               String
+  email              String
+  status             String
+  statusFormatted    String
+  renewsAt           String?
+  endsAt             String?
+  trialEndsAt        String?
+  price              String
+  isUsageBased       Boolean @default(false)
+  isPaused           Boolean @default(false)
+  subscriptionItemId Int
+
+  userId String
+  planId Int
+  plan   Plan   @relation(fields: [planId], references: [id])
+
+  @@index([subscriptionItemId])
+  @@index([planId])
+}
+
+model WebhookEvent {
+  id              String   @id @default(uuid())
+  createdAt       DateTime @default(now())
+  eventName       String
+  processed       Boolean  @default(false)
+  body            String
+  processingError String?
+}
