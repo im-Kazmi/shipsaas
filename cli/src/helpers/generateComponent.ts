@@ -19,7 +19,7 @@ if (process.env.HELICONE_API_KEY) {
 
 let together = new Together({
   ...options,
-  apiKey: "28ff9fbfc50e1876c493c02f821d614bcb1f598a7a066bcf9cfddf904aa614e4",
+  apiKey: "",
 });
 
 let schema = z.object({

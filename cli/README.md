@@ -1,6 +1,5 @@
-```markdown project="shipsaas" file="README.md"
-...
-```
+[![Star us on GitHub](https://img.shields.io/badge/⭐-Star_on_GitHub-blue?style=for-the-badge)](https://github.com/im-Kazmi/shipsaas)
+
 # 🚀 ShipSaaS CLI
 
 A powerful CLI tool to bootstrap your Next.js SaaS applications with best-in-class tools and practices.
